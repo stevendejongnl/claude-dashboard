@@ -1,0 +1,5 @@
+data/
+.playwright-mcp/
+*.jpg
+*.png
+leak-env-test-file.env

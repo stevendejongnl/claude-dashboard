@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: claude-nginx
+    ports:
+      - "5000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - dashboard
+    restart: unless-stopped
+
+  proxy:
+    build: ./proxy
+    container_name: claude-proxy
+    user: "0:0"
+    ports:
+      - "8082:8082"
+    volumes:
+      - ~/.mitmproxy:/home/mitmuser/.mitmproxy:ro
+      - ./data:/data
+    environment:
+      - DB_PATH=/data/dashboard.db
+    restart: unless-stopped
+
+  dashboard:
+    build: ./dashboard
+    container_name: claude-dashboard
+    ports:
+      - "8888:8888"
+    volumes:
+      - ~/.mitmproxy:/home/mitmuser/.mitmproxy:ro
+      - ~/.claude/accounts/work/telemetry:/telemetry:ro
+      - ./data:/data
+    environment:
+      - DB_PATH=/data/dashboard.db
+      - TELEMETRY_DIR=/telemetry
+    depends_on:
+      - proxy
+    restart: unless-stopped
