@@ -2,6 +2,7 @@
 Claude Code transparency dashboard — mitmproxy addon.
 Intercepts HTTPS flows and writes them to SQLite for the dashboard to consume.
 """
+import base64
 import json
 import logging
 import os
@@ -137,6 +138,99 @@ def _extract_text_from_messages(req_body: str | None) -> str:
     return "\n".join(parts)
 
 
+def _ingest_telemetry_batch(req_full: str, con: sqlite3.Connection):
+    """
+    Parse an /api/event_logging/v2/batch request body and write events to
+    telemetry_events (and sessions for tengu_exit). Mirrors the ingestor logic.
+    """
+    try:
+        body = json.loads(req_full)
+    except (json.JSONDecodeError, ValueError):
+        return
+
+    events = body.get("events", [])
+    if not events:
+        return
+
+    ingested_at = datetime.now(timezone.utc).isoformat()
+
+    for raw_event in events:
+        ed = raw_event.get("event_data", {})
+
+        # additional_metadata arrives as a base64-encoded JSON string in batch
+        am_raw = ed.get("additional_metadata", "{}")
+        try:
+            if isinstance(am_raw, str):
+                # Try JSON first (file format), then base64-wrapped JSON (batch format)
+                try:
+                    am = json.loads(am_raw)
+                except json.JSONDecodeError:
+                    am = json.loads(base64.b64decode(am_raw).decode("utf-8", errors="replace"))
+            else:
+                am = am_raw
+        except Exception:
+            am = {}
+
+        raw_str = json.dumps(raw_event)
+        raw_hash = __import__("hashlib").sha256(raw_str.encode()).hexdigest()
+
+        evt = {
+            "client_ts":      ed.get("client_timestamp"),
+            "event_name":     ed.get("event_name", "unknown"),
+            "session_id":     ed.get("session_id"),
+            "model":          ed.get("model"),
+            "version":        ed.get("env", {}).get("version"),
+            "device_id":      ed.get("device_id"),
+            "additional_meta": json.dumps(am),
+        }
+
+        con.execute(
+            """INSERT OR IGNORE INTO telemetry_events
+               (ingested_at, raw_hash, client_ts, event_name, session_id, model,
+                version, device_id, additional_meta, raw)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (ingested_at, raw_hash, evt["client_ts"], evt["event_name"],
+             evt["session_id"], evt["model"], evt["version"],
+             evt["device_id"], evt["additional_meta"], raw_str[:32768]),
+        )
+
+        if evt["event_name"] == "tengu_exit":
+            sid = evt["session_id"]
+            if sid:
+                con.execute(
+                    """INSERT INTO sessions
+                       (session_id, end_ts, cost_usd, input_tokens, output_tokens,
+                        cache_creation_tokens, cache_read_tokens,
+                        lines_added, lines_removed,
+                        api_duration_ms, tool_duration_ms, session_duration_ms,
+                        model, version)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(session_id) DO UPDATE SET
+                         end_ts=excluded.end_ts,
+                         cost_usd=excluded.cost_usd,
+                         input_tokens=excluded.input_tokens,
+                         output_tokens=excluded.output_tokens,
+                         cache_creation_tokens=excluded.cache_creation_tokens,
+                         cache_read_tokens=excluded.cache_read_tokens,
+                         lines_added=excluded.lines_added,
+                         lines_removed=excluded.lines_removed""",
+                    (sid, evt["client_ts"],
+                     am.get("last_session_cost"),
+                     am.get("last_session_total_input_tokens"),
+                     am.get("last_session_total_output_tokens"),
+                     am.get("last_session_total_cache_creation_input_tokens"),
+                     am.get("last_session_total_cache_read_input_tokens"),
+                     am.get("last_session_lines_added"),
+                     am.get("last_session_lines_removed"),
+                     am.get("last_session_api_duration"),
+                     am.get("last_session_tool_duration"),
+                     am.get("last_session_duration"),
+                     evt["model"], evt["version"]),
+                )
+
+    con.commit()
+
+
 class ClaudeDashboardAddon:
     """mitmproxy addon for Claude Code transparency dashboard."""
 
@@ -195,6 +289,10 @@ class ClaudeDashboardAddon:
                 ),
             )
             flow_id = cursor.lastrowid
+
+            # Ingest telemetry events from batch endpoint
+            if "event_logging" in path and req_full:
+                _ingest_telemetry_batch(req_full, con)
 
             # Scan messages_api requests for secrets (use full content, not DB-truncated body)
             if category == "messages_api" and req_full:
