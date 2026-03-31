@@ -83,3 +83,15 @@ async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA_SQL)
         await db.commit()
+
+        # Migration: add raw_hash column + unique index if not present
+        try:
+            await db.execute("ALTER TABLE telemetry_events ADD COLUMN raw_hash TEXT")
+            await db.commit()
+        except Exception:
+            pass  # column already exists — normal on second+ startup
+
+        await db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_te_raw_hash ON telemetry_events(raw_hash)"
+        )
+        await db.commit()
