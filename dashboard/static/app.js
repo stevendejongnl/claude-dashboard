@@ -16,7 +16,8 @@ let statsChart  = null;
 // WebSocket
 // ============================================================
 function connectWS() {
-  const wsUrl = `ws://${location.host}/ws`;
+  const base = (document.querySelector('base')?.getAttribute('href') || '/').replace(/\/$/, '');
+  const wsUrl = `ws://${location.host}${base}/ws`;
   const ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
@@ -162,7 +163,7 @@ function renderLeaks() {
 // API Stats chart (Chart.js)
 // ============================================================
 async function loadStats() {
-  const resp = await fetch('/api/stats/cost');
+  const resp = await fetch('api/stats/cost');
   const data = await resp.json();
 
   const days = [...new Set(data.map(r => r.day))].sort();
@@ -213,7 +214,7 @@ document.getElementById('chart-mode').addEventListener('change', loadStats);
 // Sessions panel
 // ============================================================
 async function loadSessions() {
-  const resp = await fetch('/api/sessions');
+  const resp = await fetch('api/sessions');
   const data = await resp.json();
 
   const totalCost = data.reduce((s, r) => s + (r.cost_usd || 0), 0);
@@ -276,9 +277,9 @@ document.getElementById('detail-overlay').onclick = (e) => {
 // ============================================================
 async function initialLoad() {
   const [flows, events, leaks] = await Promise.all([
-    fetch('/api/flows').then(r => r.json()),
-    fetch('/api/events').then(r => r.json()),
-    fetch('/api/leaks').then(r => r.json()),
+    fetch('api/flows').then(r => r.json()),
+    fetch('api/events').then(r => r.json()),
+    fetch('api/leaks').then(r => r.json()),
   ]);
 
   allFlows = flows;

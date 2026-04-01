@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="/dashboard/">
   <title>Claude Code Transparency Dashboard</title>
-  <script src="/static/chart.umd.min.js"></script>
+  <script src="static/chart.umd.min.js"></script>
   <style>
     :root {
       --bg:       #0d1117;
@@ -227,7 +228,7 @@
   <h1>Claude Code Transparency</h1>
   <span id="ws-status" style="color:var(--muted);font-size:11px;">connecting...</span>
   <span id="leak-badge" class="hidden">⚠ <span id="leak-count">0</span> LEAKS</span>
-  <a href="/api/cert" style="margin-left:auto;color:var(--accent);font-size:11px;text-decoration:none;border:1px solid var(--accent);padding:2px 6px;border-radius:3px;">
+  <a href="api/cert" style="margin-left:auto;color:var(--accent);font-size:11px;text-decoration:none;border:1px solid var(--accent);padding:2px 6px;border-radius:3px;">
     Download CA Cert
   </a>
 </header>
@@ -303,6 +304,6 @@
   </div>
 </div>
 
-<script src="/static/app.js"></script>
+<script src="static/app.js"></script>
 </body>
 </html>
