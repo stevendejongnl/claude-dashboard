@@ -19,7 +19,7 @@ services:
     ports:
       - "8082:8082"
     volumes:
-      - ~/.mitmproxy:/home/mitmuser/.mitmproxy:ro
+      - ~/.mitmproxy:/home/mitmuser/.mitmproxy
       - ./data:/data
     environment:
       - DB_PATH=/data/dashboard.db
