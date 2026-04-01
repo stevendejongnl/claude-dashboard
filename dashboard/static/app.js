@@ -17,7 +17,8 @@ let statsChart  = null;
 // ============================================================
 function connectWS() {
   const base = (document.querySelector('base')?.getAttribute('href') || '/').replace(/\/$/, '');
-  const wsUrl = `ws://${location.host}${base}/ws`;
+  const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl = `${wsProto}://${location.host}${base}/ws`;
   const ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
