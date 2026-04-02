@@ -138,6 +138,20 @@ RULES = [
         ),
         entropy_min=3.0,
     ),
+    # MEDIUM — short standalone password/credential var names (PASS=, PWD=, KEY=, DB_PASS=)
+    Rule(
+        "env-password-short",
+        ".env Short Password Variable",
+        "MEDIUM",
+        re.compile(
+            r"(?mi)(?:^|(?<=\n)|(?<=;))(?:export\s+)?"
+            r"(?:[A-Z][A-Z0-9_]{0,30}_)?"
+            r"(?:PASS|PWD|KEY|CRED|SECRET)\s*=\s*"
+            r"(?!.*(?:your[_-]|example|placeholder|changeme|xxx|todo|\*{3}))"
+            r"([^\s'\"#\n]{4,})"
+        ),
+        entropy_min=2.5,
+    ),
 ]
 
 
