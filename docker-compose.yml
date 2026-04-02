@@ -19,6 +19,8 @@ services:
     volumes:
       - ~/.mitmproxy:/home/mitmuser/.mitmproxy
       - ./data:/data
+      - ./proxy/scanner.py:/app/scanner.py:ro
+      - ./proxy/addon.py:/app/addon.py:ro
     environment:
       - DB_PATH=/data/dashboard.db
     restart: unless-stopped
@@ -31,6 +33,7 @@ services:
       - ~/.mitmproxy:/home/mitmuser/.mitmproxy:ro
       - ~/.claude/accounts/work/telemetry:/telemetry:ro
       - ./data:/data
+      - ./dashboard/static:/app/static:ro
     environment:
       - DB_PATH=/data/dashboard.db
       - TELEMETRY_DIR=/telemetry
